@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI reality show - v0.1 beta</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<style>
+  /* Override Tailwind CSS for custom styling */
+  .container {
+      max-width: 1200px; /* Adjust max-width as needed */
+      margin-left: auto;
+      margin-right: auto;
+  }
+
+  .canvas-container {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+  }
+
+  .canvas-container canvas {
+      border: 1px solid #000;
+  }
+
+  @media (max-width: 768px) {
+      /* Responsive styles for smaller screens */
+      .container {
+          padding-left: 1rem;
+          padding-right: 1rem;
+      }
+
+      .canvas-container {
+          flex-direction: column;
+      }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <h1 class="text-2xl font-bold mt-4">AI reality show - v0.1 beta</h1>
+
+    <div class="canvas-container">
+      <canvas id="canvas1" width="400" height="400"></canvas>
+      <!--canvas id="canvas1" class="w-1/3 h-80" width="400" height="400"></canvas>
+      <canvas id="canvas2" class="w-2/3 h-100" width="800" height="1100"></canvas-->
+    </div>
+
+  </div>
+
+  <script>
+
+    // const canvas2 = document.getElementById('canvas2');
+    // const ctx2 = canvas2.getContext('2d');
+    // const characterSprite = new Image();
+    // characterSprite.src = 'character_sprite_sheet_half.png';
+    // ctx2.drawImage(characterSprite, 0, 0);
+
+    const canvas1 = document.getElementById('canvas1');
+    const ctx1 = canvas1.getContext('2d');
+
+    const characterWidth = 64; // Width of each character frame in the sprite sheet
+    const characterHeight = 84; // Height of each character frame in the sprite sheet
+
+    let characterX = canvas1.width / 2; // Initial X position
+    let characterY = canvas1.height / 2; // Initial Y position
+
+    const characterSpeed = 8; // Movement speed
+
+    // Load character sprite sheet
+    const characterImage = new Image();
+    characterImage.src = 'character_sprite_sheet-small.png'; // Replace 'character_sprite_sheet.png' with your sprite sheet image
+
+    // Current frame index
+    let currentFrame = 0;
+
+    // Update frame index for animation
+    function updateFrame() {
+      currentFrame = (currentFrame + 1) % 4; // Assuming 4 frames in the sprite sheet for simplicity
+    }
+
+    const directions = {"left": 2, "right": 3, "up": 1, "down": 0};
+    let direction = "left";
+    let prevDirection = "left";
+
+    function updateDirection(dir) {
+      if (direction !== dir) {
+        currentFrame = 0;
+        prevdirection = direction;
+        direction = dir;
+        drawCharacter();
+      }
+    }
+
+    const messageDelay = 2000; // Delay in milliseconds before showing the message
+    let isMoving = false; // Flag to track character movement state
+    let showMessage = false; // Flag to indicate whether to show the message
+
+    function getMessage() {
+      //return "Move motherfucker or die! We don't have time to fuck around here!";
+      return "Uh oh!";
+    }
+
+    // Draw character sprite
+    function drawCharacter() {
+      // console.log("direction", directions[direction]);
+      ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+      ctx1.drawImage(characterImage, currentFrame * characterWidth, directions[direction] * 100, characterWidth, characterHeight, characterX, characterY, characterWidth, characterHeight);
+
+      // // console.log(characterImage, currentFrame * characterWidth, 0, characterWidth, characterHeight, characterX, characterY, characterWidth, characterHeight);
+
+      // console.log("drawCharacter isMoving", isMoving);
+
+      if (!isMoving && showMessage) {
+        drawTextInBubble(getMessage(), characterX - 15, characterY - 65);
+        showMessage = false;
+      }
+    }
+
+    /*
+     / Params:
+     / characterSize: Assuming character size is 64px * 64px
+    */
+    function drawTextInBubble(text, x, y, characterSize = 64, maxBubbleWidth = 150, maxBubbleHeight = 100, maxCharactersPerLine = 20, minFontSize = 12, maxFontSize = 24) {
+        const padding = 5;
+
+        const bubbleWidth = Math.max(characterSize, Math.min(maxBubbleWidth, text.length * (maxFontSize / 2))) + (padding * 4);
+
+        let fontSize = maxFontSize;
+
+        do {
+            ctx1.font = fontSize + 'px Arial';
+            var metrics = ctx1.measureText(text);
+            // var fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+            var actualHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+            var lineHeight = actualHeight;
+            var newTextWidth = metrics.width;
+
+            if (newTextWidth > bubbleWidth - padding * 2 || lineHeight * Math.ceil(text.length / maxCharactersPerLine) > maxBubbleHeight - padding * 2) {
+                fontSize -= 1;
+            }
+        } while (fontSize >= minFontSize && (ctx1.measureText(text).width > bubbleWidth - padding * 2 || lineHeight > maxBubbleHeight - padding * 2));
+
+        const lines = [];
+        let line = '';
+        for (let i = 0; i < text.length; i++) {
+            line += text[i];
+            if (line.length === maxCharactersPerLine || i === text.length - 1) {
+                lines.push(line);
+                line = '';
+            }
+        }
+
+        const bubbleHeight = Math.min(maxBubbleHeight, lines.length * lineHeight) + (padding * 2);
+
+        // console.log("lines.length * lineHeight", lines.length * lineHeight);
+        // console.log("Math.min", Math.min(maxBubbleHeight, lines.length * lineHeight));
+        // console.log("Math.max", Math.max(characterSize, Math.min(maxBubbleHeight, lines.length * lineHeight)));
+        // console.log("bubbleHeight", bubbleHeight);
+
+        // console.log("ctx1.font", ctx1.font);
+        // console.log("fontSize", fontSize);
+        // console.log("font actual height", actualHeight);
+
+        ctx1.fillStyle = 'white';
+        ctx1.strokeStyle = 'black';
+        ctx1.lineWidth = 2;
+
+        // console.log(text, x, y);
+        // console.log(bubbleWidth);
+        // console.log(lineHeight);
+        // console.log(bubbleHeight);
+
+        let offsetX = 10;
+        let offsetY = 40;
+
+        const lineWidth = 2;
+
+        ctx1.beginPath();
+        ctx1.rect(x - offsetX, y + offsetY, bubbleWidth, bubbleHeight);
+        ctx1.closePath();
+        ctx1.lineWidth = lineWidth;
+        ctx1.stroke();
+        ctx1.fill();
+
+        // Draw triangle
+
+        ctx1.beginPath();
+        ctx1.moveTo(x + bubbleWidth / 2, y + offsetY + bubbleHeight + 15);
+        ctx1.lineTo(x + bubbleWidth / 2 - 10, y + offsetY + bubbleHeight + lineWidth);
+        ctx1.lineTo(x + bubbleWidth / 2 + 10, y + offsetY + bubbleHeight + lineWidth);
+        ctx1.closePath();
+        ctx1.fillStyle = 'black';
+        ctx1.strokeStyle = 'black';
+        ctx1.lineWidth = lineWidth;
+        ctx1.stroke();
+        ctx1.fill();
+
+        ctx1.fillStyle = 'black';
+        ctx1.textAlign = 'center';
+        ctx1.textBaseline = 'middle';
+
+        lines.forEach(line => {
+            ctx1.fillText(line, x - offsetX + bubbleWidth / 2, y + offsetY + lineHeight / 2 + padding);
+            offsetY += lineHeight;
+        });
+    }
+
+    setTimeout(function() {
+        showMessage = true; // Set showMessage flag to true after a delay
+        drawCharacter(); // Redraw the character to show the message
+    }, messageDelay);
+
+  // Handle keyboard input for movement
+  document.addEventListener('keydown', function(event) {
+      event.preventDefault();
+      switch(event.key) {
+        case 'ArrowLeft':
+          updateDirection("left");
+          characterX -= characterSpeed;
+          updateFrame();
+          isMoving = true;
+          showMessage = false; // Reset showMessage flag when character starts moving
+          drawCharacter();
+          break;
+        case 'ArrowRight':
+          updateDirection("right");
+          characterX += characterSpeed;
+          updateFrame();
+          isMoving = true;
+          showMessage = false; // Reset showMessage flag when character starts moving
+          drawCharacter();
+          break;
+        case 'ArrowUp':
+          updateDirection("up");
+          characterY -= characterSpeed;
+          updateFrame();
+          isMoving = true;
+          showMessage = false; // Reset showMessage flag when character starts moving
+          drawCharacter();
+          break;
+        case 'ArrowDown':
+          updateDirection("down");
+          characterY += characterSpeed;
+          updateFrame();
+          isMoving = true;
+          showMessage = false; // Reset showMessage flag when character starts moving
+          drawCharacter();
+          break;
+      }
+  });
+
+  // Reset the movement flag when the character stops moving
+  document.addEventListener('keyup', function(event) {
+      event.preventDefault();
+      switch(event.key) {
+        case 'ArrowLeft':
+        case 'ArrowRight':
+        case 'ArrowUp':
+        case 'ArrowDown':
+          isMoving = false;
+          setTimeout(function() {
+              showMessage = true; // Set showMessage flag to true after a delay
+              drawCharacter(); // Redraw the character to show the message
+          }, messageDelay);
+          break;
+      }
+  });
+
+    // Load character sprite sheet when it's loaded
+    characterImage.onload = function() {
+      drawCharacter();
+    };
+
+  </script>
+
+</body>
+</html>
