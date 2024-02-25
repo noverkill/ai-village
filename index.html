@@ -27,6 +27,36 @@
   <script>
   window.onload = function() {
 
+    class AI {
+      drive(character, targetX, targetY) {
+        let dirX = "None";
+        let dirY = "None";
+        let chDir = "None";   // the choosen direction we need to calculate
+        if (Math.abs(character.x - targetX) > 120) {
+          if (character.x > targetX) {
+            dirX = "left";
+          } else if (character.x < targetX) {
+            dirX = "right";
+          }
+        }
+        if (Math.abs(character.y - targetY) > 120) {
+          if (character.y < targetY) {
+            dirY = "down";
+          } else if (character.y > targetY) {
+            dirY = "up";
+          }
+        }
+        if(dirX == "None" && dirY == "None") {
+          character.stop();
+        } else {
+          if(dirY == "None" && dirX !== "None") chDir = dirX;
+          else if(dirX == "None" && dirY !== "None") chDir = dirY;
+          else chDir = Math.random() < 0.5 ? dirX : dirY;
+          character.move(chDir);
+        }
+      };
+    }
+
     class TextBubble {
       constructor(
         ctx,
@@ -107,18 +137,25 @@
       };
     }
 
+    var ai = new AI();
+
     class Village {
       constructor(ctx) {
         this.ctx = ctx;
         this.margin = 5;
         this.objects = [];
+        this.counter = 0;
       };
       addObject(object) {
         this.objects.push(object);
-      }
+      };
       draw () {
         this.ctx.clearRect(0, 0, canvas.width, canvas.height);
         this.addBorder();
+        this.counter = (this.counter + 1) % 5;
+        if(this.counter == 0) {
+          ai.drive(this.objects[1], this.objects[0].x, this.objects[0].y);
+        }
         this.objects.forEach(function(object) {
           object.draw();
         });
@@ -255,8 +292,8 @@
       /*sprite*/ 'character_sprite_sheet-small.png',
       /*width*/ 64,
       /*height*/ 84,
-      /*pos x*/ 500,
-      /*posy*/ 200,
+      /*pos x*/ 700,
+      /*posy*/ 500,
       /*speed*/ 8,
       /*direction*/ "left",
       /*message*/ "Fuuckk!"
