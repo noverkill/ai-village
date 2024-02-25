@@ -27,232 +27,256 @@
   <script>
   window.onload = function() {
 
-    const canvas = document.getElementById('canvas');
-    const container = canvas.parentElement; // Assuming the canvas is directly inside the container
+    class TextBubble {
+      constructor(
+        ctx,
+        maxWidth = 150,
+        maxHeight = 100,
+        minFontSize = 12,
+        maxFontSize = 24,
+        characterSize = 64,
+        maxCharactersPerLine = 20,
+        padding = 5
+      ) {
+        this.ctx = ctx;
+        this.maxWidth = maxWidth;
+        this.maxHeight = maxHeight;
+        this.maxCharactersPerLine = maxCharactersPerLine;
+        this.minFontSize = minFontSize;
+        this.maxFontSize = maxFontSize;
+        this.characterSize = characterSize;
+        this.padding = padding;
+      };
+      show(text, x, y) {
+          const ctx = this.ctx;
+          const padding = this.padding;
+          const bubbleWidth = Math.max(this.characterSize, Math.min(this.maxWidth, text.length * (this.maxFontSize / 2))) + (padding * 4);
+          let fontSize = this.maxFontSize;
+          do {
+              ctx.font = fontSize + 'px Arial';
+              var metrics = ctx.measureText(text);
+              // var fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+              var actualHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+              var lineHeight = actualHeight;
+              var newTextWidth = metrics.width;
 
+              if (newTextWidth > bubbleWidth - padding * 2 || lineHeight * Math.ceil(text.length / this.maxCharactersPerLine) > this.maxHeight - padding * 2) {
+                  fontSize -= 1;
+              }
+          } while (fontSize >= this.minFontSize && (ctx.measureText(text).width > bubbleWidth - padding * 2 || lineHeight > this.maxHeight - padding * 2));
+          const lines = [];
+          let line = '';
+          for (let i = 0; i < text.length; i++) {
+              line += text[i];
+              if (line.length === this.maxCharactersPerLine || i === text.length - 1) {
+                  lines.push(line);
+                  line = '';
+              }
+          }
+          const bubbleHeight = Math.min(this.maxHeight, lines.length * lineHeight) + (padding * 2);
+          ctx.fillStyle = 'white';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = 2;
+          let offsetX = 10;
+          let offsetY = 40;
+          const lineWidth = 2;
+          ctx.beginPath();
+          ctx.rect(x - offsetX, y + offsetY, bubbleWidth, bubbleHeight);
+          ctx.closePath();
+          ctx.lineWidth = lineWidth;
+          ctx.stroke();
+          ctx.fill();
+          // triangle for the speech bubble
+          ctx.beginPath();
+          ctx.moveTo(x + bubbleWidth / 2, y + offsetY + bubbleHeight + 15);
+          ctx.lineTo(x + bubbleWidth / 2 - 10, y + offsetY + bubbleHeight + lineWidth);
+          ctx.lineTo(x + bubbleWidth / 2 + 10, y + offsetY + bubbleHeight + lineWidth);
+          ctx.closePath();
+          ctx.fillStyle = 'black';
+          ctx.strokeStyle = 'black';
+          ctx.lineWidth = lineWidth;
+          ctx.stroke();
+          ctx.fill();
+          ctx.fillStyle = 'black';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          lines.forEach(line => {
+              ctx.fillText(line, x - offsetX + bubbleWidth / 2, y + offsetY + lineHeight / 2 + padding);
+              offsetY += lineHeight;
+          });
+      };
+    }
+
+    class Village {
+      constructor(ctx) {
+        this.ctx = ctx;
+        this.margin = 5;
+        this.objects = [];
+      };
+      addObject(object) {
+        this.objects.push(object);
+      }
+      draw () {
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.addBorder();
+        this.objects.forEach(function(object) {
+          object.draw();
+        });
+      };
+      addBorder(lineWidth = 2) {
+        const ctx = this.ctx;
+        const margin = this.margin;
+        // Define the start and end points of the rectangle's edges
+        const startX = margin;
+        const startY = margin;
+        const endX = ctx.canvas.width - margin;
+        const endY = ctx.canvas.height - margin;
+        ctx.lineWidth = lineWidth;
+        // Begin a new path for the border lines
+        ctx.beginPath();
+        // Top line
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, startY);
+        // Right line
+        ctx.lineTo(endX, endY);
+        // Bottom line
+        ctx.lineTo(startX, endY);
+        // Left line
+        ctx.lineTo(startX, startY);
+        // Draw the lines
+        ctx.stroke();
+      };
+    };
+
+    class Character {
+      constructor(
+        village,
+        imageSrc,
+        width,
+        height,
+        x,
+        y,
+        speed,
+        direction,
+        message = "Uh oh!",
+        isMoving = false
+      ) {
+        this.village = village;
+        this.image = new Image();
+        this.image.src = imageSrc;
+        this.width = width;
+        this.height = height;
+        this.x = x;
+        this.y = y;
+        this.speed = speed;
+        this.direction = direction;
+        this.message = message;
+        this.isMoving = isMoving;
+
+        this.previousDirection = direction;
+        this.ctx = this.village.ctx;
+        this.directions = {"left": 2, "right": 3, "up": 1, "down": 0};
+        this.currentFrame = 0;
+        this.village.addObject(this);
+        this.notMovedSteps = 0;
+        this.textBubble = new TextBubble(this.ctx);
+      }
+
+      setMessage (message = "Move!") {
+        this.message = message;
+      };
+
+      getMessage() {
+        return this.message;
+      };
+
+      move(direction) {
+        // turn character first in
+        // case of change of direction
+        if (this.direction !== direction) {
+          this.currentFrame = 0;
+          this.prevdirection = direction;
+          this.direction = direction;
+          // this.village.draw();
+        }
+        switch (direction) {
+          case "left": this.x -= this.speed; break;
+          case "right": this.x += this.speed; break;
+          case "up": this.y -= this.speed; break;
+          case "down": this.y += this.speed; break;
+        }
+        this.isMoving = true;
+        this.notMovedSteps = 0;
+        this.currentFrame = (this.currentFrame + 1) % 4; // Assuming 4 frames per direction
+        // this.village.draw();
+      };
+
+      stop() {
+        this.isMoving = false;
+      };
+
+      draw() {
+        this.ctx.drawImage(this.image, this.currentFrame * this.width, this.directions[this.direction] * 100, this.width, this.height, this.x, this.y, this.width, this.height);
+        if (!this.isMoving) {
+          this.notMovedSteps += 1;
+          if (this.notMovedSteps > 15) {
+            this.textBubble.show(this.getMessage(), this.x - 15, this.y - 65);
+          }
+        }
+      };
+    };
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const container = canvas.parentElement; // Assuming the canvas is directly inside the container
     canvas.height = container.clientHeight - 50;
     canvas.width = container.clientWidth;
 
-    const ctx = canvas.getContext('2d');
+    // Delay in milliseconds before showing the message when character stop moving
+    const messageDelay = 2000;
 
-    const characterWidth = 64; // Width of each character frame in the sprite sheet
-    const characterHeight = 84; // Height of each character frame in the sprite sheet
+    var village = new Village (ctx);
 
-    const characterSpeed = 8; // Movement speed
+    var character1 = new Character (
+      /*village*/ village,
+      /*sprite*/ 'character_sprite_sheet-small.png',
+      /*width*/ 64,
+      /*height*/ 84,
+      /*pos x*/ 100,
+      /*posy*/ 100,
+      /*speed*/ 8,
+      /*direction*/ "right",
+      /*message*/ "Uh Oh!",
+      /*isMoving*/ true
+    );
 
-    let characterX = 100; // Initial X position
-    let characterY = 100; // Initial Y position
-
-    // Load character sprite sheet
-    const characterImage = new Image();
-    characterImage.src = 'character_sprite_sheet-small.png';
-
-    // Current frame index on character sprite sheet
-    let currentFrame = 0;
-
-    const directions = {"left": 2, "right": 3, "up": 1, "down": 0};
-    let direction = "left";
-    let prevDirection = "left";
-
-    const messageDelay = 2000; // Delay in milliseconds before showing the message when character stop moving
-    let isMoving = false; // Flag to track character movement state
-    let showMessage = false; // Flag to indicate whether to show the message
-
-    function getMessage() {
-      //return "Move motherfucker or die! We don't have time to fuck around here!";
-      return "Uh oh!";
-    }
-
-    // Update frame index for animation
-    function updateFrame() {
-      currentFrame = (currentFrame + 1) % 4; // Assuming 4 frames in the sprite sheet for simplicity
-    }
-
-    // Update direction for animation
-    function updateDirection(dir) {
-      if (direction !== dir) {
-        currentFrame = 0;
-        prevdirection = direction;
-        direction = dir;
-        drawCharacter();
-      }
-    }
-
-    // Draw character sprite
-    function drawCharacter() {
-      // console.log("direction", directions[direction]);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      addBorder(ctx, 5);
-
-      ctx.drawImage(characterImage, currentFrame * characterWidth, directions[direction] * 100, characterWidth, characterHeight, characterX, characterY, characterWidth, characterHeight);
-
-      // // console.log(characterImage, currentFrame * characterWidth, 0, characterWidth, characterHeight, characterX, characterY, characterWidth, characterHeight);
-
-      // console.log("drawCharacter isMoving", isMoving);
-
-      if (!isMoving && showMessage) {
-        drawTextInBubble(getMessage(), characterX - 15, characterY - 65);
-        showMessage = false;
-      }
-    }
-
-    function addBorder(ctx, margin) {
-      const lineWidth = 2; // Line width of 2px
-      ctx.lineWidth = lineWidth;
-
-      // Define the start and end points of the rectangle's edges
-      const startX = margin;
-      const startY = margin;
-      const endX = ctx.canvas.width - margin;
-      const endY = ctx.canvas.height - margin;
-
-      // Clear previous drawings
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-      // Begin a new path for the border lines
-      ctx.beginPath();
-
-      // Top line
-      ctx.moveTo(startX, startY);
-      ctx.lineTo(endX, startY);
-
-      // Right line
-      ctx.lineTo(endX, endY);
-
-      // Bottom line
-      ctx.lineTo(startX, endY);
-
-      // Left line
-      ctx.lineTo(startX, startY);
-
-      // Draw the lines
-      ctx.stroke();
-    }
-
-    /*
-     / Params:
-     / characterSize: Assuming character size is 64px * 64px
-    */
-    function drawTextInBubble(text, x, y, characterSize = 64, maxBubbleWidth = 150, maxBubbleHeight = 100, maxCharactersPerLine = 20, minFontSize = 12, maxFontSize = 24) {
-        const padding = 5;
-
-        const bubbleWidth = Math.max(characterSize, Math.min(maxBubbleWidth, text.length * (maxFontSize / 2))) + (padding * 4);
-
-        let fontSize = maxFontSize;
-
-        do {
-            ctx.font = fontSize + 'px Arial';
-            var metrics = ctx.measureText(text);
-            // var fontHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
-            var actualHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
-            var lineHeight = actualHeight;
-            var newTextWidth = metrics.width;
-
-            if (newTextWidth > bubbleWidth - padding * 2 || lineHeight * Math.ceil(text.length / maxCharactersPerLine) > maxBubbleHeight - padding * 2) {
-                fontSize -= 1;
-            }
-        } while (fontSize >= minFontSize && (ctx.measureText(text).width > bubbleWidth - padding * 2 || lineHeight > maxBubbleHeight - padding * 2));
-
-        const lines = [];
-        let line = '';
-        for (let i = 0; i < text.length; i++) {
-            line += text[i];
-            if (line.length === maxCharactersPerLine || i === text.length - 1) {
-                lines.push(line);
-                line = '';
-            }
-        }
-
-        const bubbleHeight = Math.min(maxBubbleHeight, lines.length * lineHeight) + (padding * 2);
-
-        // console.log("lines.length * lineHeight", lines.length * lineHeight);
-        // console.log("Math.min", Math.min(maxBubbleHeight, lines.length * lineHeight));
-        // console.log("Math.max", Math.max(characterSize, Math.min(maxBubbleHeight, lines.length * lineHeight)));
-        // console.log("bubbleHeight", bubbleHeight);
-
-        // console.log("ctx.font", ctx.font);
-        // console.log("fontSize", fontSize);
-        // console.log("font actual height", actualHeight);
-
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
-
-        // console.log(text, x, y);
-        // console.log(bubbleWidth);
-        // console.log(lineHeight);
-        // console.log(bubbleHeight);
-
-        let offsetX = 10;
-        let offsetY = 40;
-
-        const lineWidth = 2;
-
-        ctx.beginPath();
-        ctx.rect(x - offsetX, y + offsetY, bubbleWidth, bubbleHeight);
-        ctx.closePath();
-        ctx.lineWidth = lineWidth;
-        ctx.stroke();
-        ctx.fill();
-
-        // Draw triangle for the speech bubble
-        ctx.beginPath();
-        ctx.moveTo(x + bubbleWidth / 2, y + offsetY + bubbleHeight + 15);
-        ctx.lineTo(x + bubbleWidth / 2 - 10, y + offsetY + bubbleHeight + lineWidth);
-        ctx.lineTo(x + bubbleWidth / 2 + 10, y + offsetY + bubbleHeight + lineWidth);
-        ctx.closePath();
-        ctx.fillStyle = 'black';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = lineWidth;
-        ctx.stroke();
-        ctx.fill();
-
-        ctx.fillStyle = 'black';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        lines.forEach(line => {
-            ctx.fillText(line, x - offsetX + bubbleWidth / 2, y + offsetY + lineHeight / 2 + padding);
-            offsetY += lineHeight;
-        });
-    }
+    var character2 = new Character (
+      /*village*/ village,
+      /*sprite*/ 'character_sprite_sheet-small.png',
+      /*width*/ 64,
+      /*height*/ 84,
+      /*pos x*/ 500,
+      /*posy*/ 200,
+      /*speed*/ 8,
+      /*direction*/ "left",
+      /*message*/ "Fuuckk!"
+    );
 
     // Handle keyboard input for movement
     document.addEventListener('keydown', function(event) {
         event.preventDefault();
         switch(event.key) {
           case 'ArrowLeft':
-            updateDirection("left");
-            characterX -= characterSpeed;
-            updateFrame();
-            isMoving = true;
-            showMessage = false; // Reset showMessage flag when character starts moving
-            drawCharacter();
+            character1.move("left");
             break;
           case 'ArrowRight':
-            updateDirection("right");
-            characterX += characterSpeed;
-            updateFrame();
-            isMoving = true;
-            showMessage = false; // Reset showMessage flag when character starts moving
-            drawCharacter();
+            character1.move("right");
             break;
           case 'ArrowUp':
-            updateDirection("up");
-            characterY -= characterSpeed;
-            updateFrame();
-            isMoving = true;
-            showMessage = false; // Reset showMessage flag when character starts moving
-            drawCharacter();
+            character1.move("up");
             break;
           case 'ArrowDown':
-            updateDirection("down");
-            characterY += characterSpeed;
-            updateFrame();
-            isMoving = true;
-            showMessage = false; // Reset showMessage flag when character starts moving
-            drawCharacter();
+            character1.move("down");
             break;
         }
     });
@@ -265,28 +289,14 @@
           case 'ArrowRight':
           case 'ArrowUp':
           case 'ArrowDown':
-            isMoving = false;
-            setSpeechBubbleTimeout()
+            character1.stop();
         }
     });
 
-    // Load character sprite sheet when it's loaded
-    characterImage.onload = function() {
-      drawCharacter();
-    };
-
-    // start initial speech bubble timeout func.
-    setSpeechBubbleTimeout();
-
-    function setSpeechBubbleTimeout () {
-      setTimeout(function() {
-          showMessage = true; // Set showMessage flag to true after a delay
-          drawCharacter(); // Redraw the character to show the message
-      }, messageDelay);
-    };
+    // village.draw();
+    const intervalId = setInterval(village.draw.bind(village), 25);
 
   };
-
   </script>
 
 </body>
