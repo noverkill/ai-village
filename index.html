@@ -196,7 +196,8 @@
         speed,
         direction,
         message = "Uh oh!",
-        isMoving = false
+        isMoving = false,
+        directions = {"left": 2, "right": 3, "up": 1, "down": 0}
       ) {
         this.village = village;
         this.image = new Image();
@@ -209,10 +210,10 @@
         this.direction = direction;
         this.message = message;
         this.isMoving = isMoving;
+        this.directions = directions;
 
         this.previousDirection = direction;
         this.ctx = this.village.ctx;
-        this.directions = {"left": 2, "right": 3, "up": 1, "down": 0};
         this.currentFrame = 0;
         this.village.addObject(this);
         this.notMovedSteps = 0;
@@ -234,7 +235,6 @@
           this.currentFrame = 0;
           this.prevdirection = direction;
           this.direction = direction;
-          // this.village.draw();
         }
         switch (direction) {
           case "left": this.x -= this.speed; break;
@@ -245,15 +245,15 @@
         this.isMoving = true;
         this.notMovedSteps = 0;
         this.currentFrame = (this.currentFrame + 1) % 4; // Assuming 4 frames per direction
-        // this.village.draw();
       };
 
       stop() {
         this.isMoving = false;
+        this.direction = "down";
       };
 
       draw() {
-        this.ctx.drawImage(this.image, this.currentFrame * this.width, this.directions[this.direction] * 100, this.width, this.height, this.x, this.y, this.width, this.height);
+        this.ctx.drawImage(this.image, this.currentFrame * this.width, this.directions[this.direction] * this.height, this.width, this.height, this.x, this.y, this.width, this.height);
         if (!this.isMoving) {
           this.notMovedSteps += 1;
           if (this.notMovedSteps > 15) {
@@ -278,25 +278,27 @@
       /*village*/ village,
       /*sprite*/ 'character_sprite_sheet-small.png',
       /*width*/ 64,
-      /*height*/ 84,
+      /*height*/ 100,
       /*pos x*/ 100,
       /*posy*/ 100,
       /*speed*/ 8,
-      /*direction*/ "right",
+      /*direction*/ "down",
       /*message*/ "Uh Oh!",
       /*isMoving*/ true
     );
 
     var character2 = new Character (
       /*village*/ village,
-      /*sprite*/ 'character_sprite_sheet-small.png',
+      /*sprite*/ 'girl_character_sheet.png',
       /*width*/ 64,
-      /*height*/ 84,
+      /*height*/ 68,
       /*pos x*/ 700,
       /*posy*/ 500,
       /*speed*/ 8,
       /*direction*/ "left",
-      /*message*/ "Fuuckk!"
+      /*message*/ "Fuuckk!",
+      /*isMoving*/ false,
+      /*directions*/ {"left": 1, "right": 2, "up": 3, "down": 0}
     );
 
     // Handle keyboard input for movement
