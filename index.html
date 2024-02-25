@@ -27,36 +27,6 @@
   <script>
   window.onload = function() {
 
-    class AI {
-      drive(character, targetX, targetY) {
-        let dirX = "None";
-        let dirY = "None";
-        let chDir = "None";   // the choosen direction we need to calculate
-        if (Math.abs(character.x - targetX) > 120) {
-          if (character.x > targetX) {
-            dirX = "left";
-          } else if (character.x < targetX) {
-            dirX = "right";
-          }
-        }
-        if (Math.abs(character.y - targetY) > 120) {
-          if (character.y < targetY) {
-            dirY = "down";
-          } else if (character.y > targetY) {
-            dirY = "up";
-          }
-        }
-        if(dirX == "None" && dirY == "None") {
-          character.stop();
-        } else {
-          if(dirY == "None" && dirX !== "None") chDir = dirX;
-          else if(dirX == "None" && dirY !== "None") chDir = dirY;
-          else chDir = Math.random() < 0.5 ? dirX : dirY;
-          character.move(chDir);
-        }
-      };
-    }
-
     class TextBubble {
       constructor(
         ctx,
@@ -137,6 +107,91 @@
       };
     }
 
+    class AI {
+      constructor(limit = 200) {
+        this.limit = limit;
+        this.lastDirection = null;
+      }
+
+      driveTo(object, target) {
+
+        let currentX = object.x;
+        let currentY = object.y;
+
+        let targetX = target.x;
+        let targetY = target.y;
+
+        // check if object closer to target then this.limit
+        // if yes then "stop" it from moving
+        if (this.lastDirection) {
+          if (this.isCloserInDirection(currentX, currentY, targetX, targetY, this.lastDirection)) {
+            object.stop();
+          }
+        } else {
+          const distance = Math.sqrt((targetX - currentX) ** 2 + (targetY - currentY) ** 2);
+          if (distance <= this.limit) {
+            object.stop();
+          }
+        }
+
+        // Prefer the same direction as the last direction to minimize direction changes
+        if (this.lastDirection && this.isDirectionValid(this.lastDirection, currentX, currentY, targetX, targetY)) {
+          object.move(this.lastDirection);
+        }
+
+        // Calculate the direction towards the target
+        let direction;
+
+        if (targetX < currentX) {
+          direction = "left";
+        } else if (targetX > currentX) {
+          direction = "right";
+        } else if (targetY < currentY) {
+          direction = "up";
+        } else if (targetY > currentY) {
+          direction = "down";
+        } else {
+          direction = "stop"; // Already at the target
+        }
+
+        this.lastDirection = direction;
+
+        object.move(direction);
+      };
+
+      // Check if the given direction is valid, i.e., it brings the character closer to the target
+      isDirectionValid(direction, currentX, currentY, targetX, targetY) {
+        switch (direction) {
+          case "left":
+            return currentX - 1 >= targetX;
+          case "right":
+            return currentX + 1 <= targetX;
+          case "up":
+            return currentY - 1 >= targetY;
+          case "down":
+            return currentY + 1 <= targetY;
+          default:
+            return false;
+        }
+      };
+
+      // Check if the character is closer to the target in the specified direction
+      isCloserInDirection(currentX, currentY, targetX, targetY, direction) {
+        switch (direction) {
+          case "left":
+            return (currentX - targetX) <= this.limit;
+          case "right":
+            return (targetX - currentX) <= this.limit;
+          case "up":
+            return (currentY - targetY) <= this.limit;
+          case "down":
+            return (targetY - currentY) <= this.limit;
+          default:
+            return false;
+        }
+      }
+    }
+
     var ai = new AI();
 
     class Village {
@@ -154,7 +209,8 @@
         this.addBorder();
         this.counter = (this.counter + 1) % 5;
         if(this.counter == 0) {
-          ai.drive(this.objects[1], this.objects[0].x, this.objects[0].y);
+          console.log(this.counter);
+          ai.driveTo(this.objects[1], this.objects[0]);
         }
         this.objects.forEach(function(object) {
           object.draw();
@@ -231,6 +287,10 @@
       move(direction) {
         // turn character first in
         // case of change of direction
+        if(direction == "stop") {
+          this.stop();
+          return;
+        }
         if (this.direction !== direction) {
           this.currentFrame = 0;
           this.prevdirection = direction;
@@ -292,8 +352,8 @@
       /*sprite*/ 'girl_character_sheet.png',
       /*width*/ 64,
       /*height*/ 68,
-      /*pos x*/ 700,
-      /*posy*/ 500,
+      /*pos x*/ 300,
+      /*posy*/ 300,
       /*speed*/ 8,
       /*direction*/ "left",
       /*message*/ "Fuuckk!",
