@@ -192,69 +192,43 @@
       }
     }
 
-    var ai = new AI();
+    class Map {
+      constructor(
+        imageSrc,
+        x, y,
+        width,
+        height
+      ) {
+        this.image = new Image();
+        this.image.src = imageSrc;
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+      };
 
-    class Village {
-      constructor(ctx) {
-        this.ctx = ctx;
-        this.margin = 5;
-        this.objects = [];
-        this.counter = 0;
-      };
-      addObject(object) {
-        this.objects.push(object);
-      };
-      draw () {
-        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        this.addBorder();
-        this.counter = (this.counter + 1) % 5;
-        if(this.counter == 0) {
-          console.log(this.counter);
-          ai.driveTo(this.objects[1], this.objects[0]);
-        }
-        this.objects.forEach(function(object) {
-          object.draw();
-        });
-      };
-      addBorder(lineWidth = 2) {
-        const ctx = this.ctx;
-        const margin = this.margin;
-        // Define the start and end points of the rectangle's edges
-        const startX = margin;
-        const startY = margin;
-        const endX = ctx.canvas.width - margin;
-        const endY = ctx.canvas.height - margin;
-        ctx.lineWidth = lineWidth;
-        // Begin a new path for the border lines
-        ctx.beginPath();
-        // Top line
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, startY);
-        // Right line
-        ctx.lineTo(endX, endY);
-        // Bottom line
-        ctx.lineTo(startX, endY);
-        // Left line
-        ctx.lineTo(startX, startY);
-        // Draw the lines
-        ctx.stroke();
+      draw(ctx) {
+        // this.ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        ctx.drawImage(this.image, this.x, this.y);
       };
     };
 
     class Character {
       constructor(
+        name,
         village,
         imageSrc,
         width,
         height,
         x,
         y,
-        speed,
-        direction,
+        speed = 8,
+        direction = "stop",
         message = "Uh oh!",
         isMoving = false,
         directions = {"left": 2, "right": 3, "up": 1, "down": 0}
       ) {
+        this.name = name;
         this.village = village;
         this.image = new Image();
         this.image.src = imageSrc;
@@ -285,6 +259,11 @@
       };
 
       move(direction) {
+
+        const leftAdjust = 4;
+        const rightAdjust = 40;
+        const limitLeft = - leftAdjust;
+        const limitRight = this.village.width - rightAdjust;
         // turn character first in
         // case of change of direction
         if(direction == "stop") {
@@ -297,10 +276,34 @@
           this.direction = direction;
         }
         switch (direction) {
-          case "left": this.x -= this.speed; break;
-          case "right": this.x += this.speed; break;
-          case "up": this.y -= this.speed; break;
-          case "down": this.y += this.speed; break;
+          case "left":
+            if (this.x > limitLeft) {
+              this.x -= this.speed;
+            } else if (this.village.map.x < 0) {
+              this.village.map.x += this.speed;
+            }
+            break;
+          case "right":
+            if(this.x < limitRight) {
+              this.x += this.speed;
+            } else if (this.village.map.x > -1024) {  /*-1024*/
+              this.village.map.x -= this.speed;
+            }
+            break;
+          case "up":
+            if(this.y > 12) {
+              this.y -= this.speed;
+            } else if (this.village.map.y < 0) {
+              this.village.map.y += this.speed;
+            }
+            break;
+          case "down":
+            if(this.y < 820) {
+              this.y += this.speed;
+            } else if (this.village.map.y > -2560){   // 3452 - 1920
+              this.village.map.y -= this.speed;
+            }
+            break;
         }
         this.isMoving = true;
         this.notMovedSteps = 0;
@@ -323,18 +326,117 @@
       };
     };
 
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const container = canvas.parentElement; // Assuming the canvas is directly inside the container
-    canvas.height = container.clientHeight - 50;
-    canvas.width = container.clientWidth;
+    class ScoreBoard {
+      constructor(
+        name,
+        village,
+        imageSrc,
+        width,
+        height,
+        x,
+        y,
+      ) {
+        this.name = name;
+        this.village = village;
+        this.image = new Image();
+        this.image.src = imageSrc;
+        this.width = width;
+        this.height = height;
+        this.x = x;
+        this.y = y;
+        this.ctx = this.village.ctx;
+        this.village.addObject(this);
+      }
 
-    // Delay in milliseconds before showing the message when character stop moving
-    const messageDelay = 2000;
+      displayCords (cords, index) {
+        this.ctx.fillStyle = 'black';
+        this.ctx.font = '18px Arial';
+        this.ctx.fillText(cords, this.x + 100, this.y + 15 + (25 * index));
+      };
 
-    var village = new Village (ctx);
+      draw() {
+        this.ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+        let cords = `Canvas: x=${this.village.canvas.width}, y=${this.village.canvas.height}`;
+        this.displayCords (cords, 0);
+        cords = `Map: x=${this.village.map.x}, y=${this.village.map.y}`;
+        this.displayCords (cords, 1);
+        this.village.objects.forEach(function(object, index) {
+          cords = `${object.name}: x=${object.x}, y=${object.y}, dir=${object.direction}`;
+          this.displayCords (cords, index + 2);
+        }, this);
+      };
+    };
 
-    var character1 = new Character (
+    var ai = new AI();
+
+    class Village {
+      constructor(canvasId, mapImage) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = canvas.getContext('2d');
+        this.container = canvas.parentElement; // Assuming the canvas is directly inside the container
+        this.canvas.height = this.container.clientHeight - 50;
+        this.canvas.width = this.container.clientWidth;
+
+        this.map = new Map (
+          /*image*/ mapImage,
+          /*posX*/ 0,
+          /*posY*/ 0,
+          /*width*/ 2944,
+          /*height*/ 3452
+        );
+
+        this.margin = 5;
+        this.objects = [];
+        this.counter = 0;
+        this.width = canvas.width;
+        this.height = canvas.height;
+      };
+      addObject(object) {
+        this.objects.push(object);
+      };
+      draw () {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.map.draw(this.ctx);
+        this.addBorder();
+        // this.counter = (this.counter + 1) % 5;
+        // if(this.counter == 0) {
+        //   ai.driveTo(this.objects[2], this.objects[1]);
+        // }
+        this.objects.forEach(function(object, index) {
+          object.draw();
+        });
+
+      };
+
+      addBorder(lineWidth = 2) {
+        const ctx = this.ctx;
+        const margin = this.margin;
+        // Define the start and end points of the rectangle's edges
+        const startX = margin;
+        const startY = margin;
+        const endX = ctx.canvas.width - margin;
+        const endY = ctx.canvas.height - margin;
+        ctx.lineWidth = lineWidth;
+        // Begin a new path for the border lines
+        ctx.beginPath();
+        // Top line
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, startY);
+        // Right line
+        ctx.lineTo(endX, endY);
+        // Bottom line
+        ctx.lineTo(startX, endY);
+        // Left line
+        ctx.lineTo(startX, startY);
+        // Draw the lines
+        ctx.stroke();
+      };
+    };
+
+    var village = new Village ('canvas', 'terkep.jpeg');
+
+    var joe = new Character (
+      /*name*/ "Joe",
       /*village*/ village,
       /*sprite*/ 'character_sprite_sheet-small.png',
       /*width*/ 64,
@@ -347,18 +449,29 @@
       /*isMoving*/ true
     );
 
-    var character2 = new Character (
+//    var ann = new Character (
+//      /*name*/ "Ann",
+//      /*village*/ village,
+//      /*sprite*/ 'girl_character_sheet.png',
+//      /*width*/ 64,
+//      /*height*/ 68,
+//      /*pos x*/ 100,
+//      /*posy*/ 100,
+//      /*speed*/ 8,
+//      /*direction*/ "left",
+//      /*message*/ "Uh Oh!",
+//      /*isMoving*/ false,
+//      /*directions*/ {"left": 1, "right": 2, "up": 3, "down": 0}
+//    );
+
+    var scoreBoard = new ScoreBoard (
+      /*name*/ "Coords",
       /*village*/ village,
-      /*sprite*/ 'girl_character_sheet.png',
-      /*width*/ 64,
-      /*height*/ 68,
-      /*pos x*/ 300,
-      /*posy*/ 300,
-      /*speed*/ 8,
-      /*direction*/ "left",
-      /*message*/ "Fuuckk!",
-      /*isMoving*/ false,
-      /*directions*/ {"left": 1, "right": 2, "up": 3, "down": 0}
+      /*sprite*/ 'white-placeholder.png',
+      /*width*/ 300,
+      /*height*/ 100,
+      /*posx*/ 1600,
+      /*posy*/ 10,
     );
 
     // Handle keyboard input for movement
@@ -366,16 +479,16 @@
         event.preventDefault();
         switch(event.key) {
           case 'ArrowLeft':
-            character1.move("left");
+            joe.move("left");
             break;
           case 'ArrowRight':
-            character1.move("right");
+            joe.move("right");
             break;
           case 'ArrowUp':
-            character1.move("up");
+            joe.move("up");
             break;
           case 'ArrowDown':
-            character1.move("down");
+            joe.move("down");
             break;
         }
     });
@@ -388,11 +501,10 @@
           case 'ArrowRight':
           case 'ArrowUp':
           case 'ArrowDown':
-            character1.stop();
+            joe.stop();
         }
     });
 
-    // village.draw();
     const intervalId = setInterval(village.draw.bind(village), 25);
 
   };
